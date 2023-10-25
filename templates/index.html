@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>PixelCom-Timer_GUI</title>
+        <!-- Add the Socket.IO client library from CDN -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.1/socket.io.js"></script>
+
+    </head>
+<body>
+    <div>
+        <h3>PixelCom-Timer_GUI</h3>
+        <h1 id="connected"></h1>
+        <h1 id="time"></h1>
+        <h2 id="defaultTime"></h2>
+        
+        <div class="connection-row">
+            <button class="button" id="ConnecttoPixelCom">Connect to PixelCom</button>
+            <button class="button" id="DisconnectfromPixelCom">Disconnect from PixelCom</button>
+        </div>
+
+        <div class="time-modifier-row">
+            <button class="button" id="defaultAdd">Default time +60s</button>
+            <button class="button" id="defaultSub">Default time -60s</button>    
+            <button id="add">+60s </button>
+            <button id="sub">-60s </button>
+        </div>
+        <div class="control-row">
+            <button id="now">End time now!</button>
+            <button id="halt">Halt timer</button>
+            <button id="unHalt">Unhalt timer</button>
+            <button id="reset">Reset timer</button>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        var socket = io.connect('http://' + document.domain + ':' + location.port)
+
+        socket.on('message', function(data) {
+            console.log('Received message from server:', data)
+            // document.getElementById('message').innerHTML = data.data
+        })
+
+        
+        // Send a message to the server upon successful WebSocket connection
+        socket.on('connect', function() {
+            socket.emit('message_from_client', 'Hello from client!')
+        })
+
+        socket.on('ping', function(data) {
+            console.log(data.timeLeft)
+            document.getElementById('connected').innerHTML = 'Connected to PixelCom: ' + data.connected
+            document.getElementById('time').innerHTML = 'Time left: ' + data.timeLeft
+            document.getElementById('defaultTime').innerHTML = 'Default Time: ' + data.defaultTime
+        })
+
+        document.getElementById('ConnecttoPixelCom').onclick = function() {
+            console.log('Connect to PixelCom')
+            socket.emit('pixConnect')
+        }
+        document.getElementById('DisconnectfromPixelCom').onclick = function() {
+            console.log('Disconnect to PixelCom')
+            socket.emit('pixDisconnect')
+        }
+
+        document.getElementById('add').onclick = function() {
+            console.log('add')
+            socket.emit('change', 60)
+        }
+
+        document.getElementById('sub').onclick = function() {
+            socket.emit('change', -60)
+        }
+
+        document.getElementById('defaultAdd').onclick = function() {
+            socket.emit('defaultChange', 60)
+        }
+
+        document.getElementById('defaultSub').onclick = function() {
+            socket.emit('defaultChange', -60)
+        }
+
+        document.getElementById('now').onclick = function() {
+            socket.emit('end')
+        }
+
+        document.getElementById('halt').onclick = function() {
+            socket.emit('halt')
+        }
+        
+        document.getElementById('unHalt').onclick = function() {
+            socket.emit('unHalt')
+        }
+
+        document.getElementById('reset').onclick = function() {
+            socket.emit('reset')
+        }
+    </script>
+</body>
+<style>
+    body {
+        background-color: #ffffff;
+        font-family: Arial, sans-serif;
+    }
+    
+    button {
+        background-color: #c9c9c9df;
+        color: #000000;
+        padding: 20px 20px;
+        margin: 10px 10px;
+        border: none;
+        border-radius: 5px;
+    }
+</style>
+</html>
