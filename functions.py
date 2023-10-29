@@ -1,55 +1,59 @@
 import socket
 import time
+   
+def connectToPixel(sendHOST, sendPORT):
+    Pixel_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    Pixel_socket.bind((sendHOST, sendPORT))
+    Pixel_socket.listen(1)
+    #Might need to be changed to accept depending on how the pixelcom works
+    Pixel_conn, addr = Pixel_socket.accept()
+    return Pixel_conn
 
-
-def checkHasLeaderPassedAndLaps(host_socket, currentlap):
-    
-    while True:
-        try:
-            data = host_socket.recv(1024)
-        except:
-            print("Failed to read data! ")
-
-        sdata = data.decode('latin-1')
-        sdata = sdata.split(",")
-        if sdata[0] == '$F':
-            if sdata[1] != currentlap:
-                if sdata[1] == '9999':
-                    if currentlap != 1:
-                        return True, 1
-                else:
-                    return True, sdata[1]
-            else:
-                return False, currentlap
-        elif sdata[0] == '':
-            return False, currentlap    
-
+def disconnectFromPixel(Pixel_conn):
+    Pixel_conn.close()
             
-def sendToPixel(conn, remainingLaps):
+def sendToPixelTime(conn, time):
     print("Sending to pixel: ")
-    tempremLaps = int(remainingLaps) -1
-    print(tempremLaps)
-    print("\n")
-    #print("Sending to pixel")
-    for i in range(5):
-        tempremLaps = int(remainingLaps) -1
-        if tempremLaps != -1:            
-                conn.sendall(bytes(f'$F,{str(tempremLaps)},"00:00:00","00:00:00","00:00:00","      "\r\n', encoding='utf8'))
-
-
-
-def sendToPixel2(conn, remainingLaps):
-    print("Sending to pixel2: ")
-    print(remainingLaps)
+    #print(time)
     #print("\n")
-    for i in range(5):
-        conn.sendall(bytes(f'$F,{str(remainingLaps)},"00:00:00","00:00:00","00:00:00","      "\r\n', encoding='utf8'))
+    #print("Sending to pixel")
+    #Build the message
+    minutes = time // 60
+    seconds = time % 60
+    checksum = 1+14 + minutes + seconds 
+    hex_string = "6908086900010e" + f"{minutes:02X}" + "00" + f"{seconds:02X}" + "0000" + hex(checksum)[2:] + "16"
+    print(hex_string)
 
-    
-def connectToClient(conn,socket):
-    from server import sendHOST,sendPORT   
-    #socket.close()
+    #conn.sendall(bytes(hex_string, 'utf-8'))  
 
-    conn, addr = socket.accept()
-    print("Hi ",addr)
+def sendToPixelYellowFlag(conn):
+    print("Sending Yellow Flag to pixel")
 
+    hex_string = "6908086900011c00000000001d16"
+    conn.sendall(bytes(hex_string, 'utf-8'))
+
+def sendToPixelGreenFlag(conn):
+    print("Sending Finish Flag to pixel")
+
+    hex_string = "6908086900010600000000646b16"
+    conn.sendall(bytes(hex_string, 'utf-8'))
+
+def sendToPixelRedFlag(conn):
+    print("Sending Red Flag to pixel")
+    #Needs to be modified with the correct hex value
+    hex_string = "6908086900010f00000000001016"
+    conn.sendall(bytes(hex_string, 'utf-8'))
+
+def sendToPixelShowTimeOrLaps(conn):
+    print("Sending Show Time or Laps to pixel")
+    #Needs to be modified with the correct hex value
+    hex_string = "6908086900010f00000000001016"
+    conn.sendall(bytes(hex_string, 'utf-8'))
+
+def sendToPixelTurnOfPenaltyBoard(conn):
+    print("Sending Turn Off Penalty Board to pixel")
+    #Needs to be modified with the correct hex value
+    hex_string = "6908086900010f00000000001016"
+    conn.sendall(bytes(hex_string, 'utf-8'))
+
+                

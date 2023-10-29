@@ -3,10 +3,9 @@ from flask_socketio import SocketIO, emit
 import time
 import threading
 import socket
-from functions import checkHasLeaderPassedAndLaps
-from functions import sendToPixel 
-from functions import sendToPixel2
-from functions import connectToClient
+from functions import sendToPixelTime
+
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
@@ -108,6 +107,9 @@ def ping_clients():
   socketio.emit('ping', data, namespace='/')
 
   # send to pixelcom displays
+  if connected:
+    sendToPixelTime(Pixel_conn, timeLeft)
+
 
 def ping_loop():
   global timeLeft

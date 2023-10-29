@@ -28,7 +28,13 @@ Times around 6 min
 0000   69 08 08 69 00 01 0e 05  5min 00 37 sec 00 00 4b unsure 16
 0000   69 08 08 69 00 01 0e 05 00 36 00 00 4a unsure  16
 0000   69 08 08 69 00 01 0e 05 00 35 00 00 49 unsure 16
-0000   69 08 08 69 00 01 0e 09 min 00 15 sec 00 00 2d checksum of numbers after second 69 16
+
+Time around 9 minutes
+0000   69 08 08 69 00 01 0e 09 00 15 00 00 2d checksum of numbers after second 69 16
+
+Generated message
+0000   69 08 08 69 00 01 0e 09 00 15 00 00 2d 16
+
 
 
 
