@@ -7,30 +7,53 @@
 
     </head>
 <body>
-    <div>
-        <h3>PixelCom-Timer_GUI</h3>
-        <h1 id="connected"></h1>
-        <h1 id="time"></h1>
-        <h2 id="defaultTime"></h2>
+    <div class="container">
+        <div class = "left-column">
+            <h3>PixelCom-Timer_GUI</h3>
+            <h2 id="connected"></h1>
+            <h1 id="time"></h1>
+            <h2 id="defaultTime"></h2>
         
-        <div class="connection-row">
-            <button class="button" id="ConnecttoPixelCom">Connect to PixelCom</button>
-            <button class="button" id="DisconnectfromPixelCom">Disconnect from PixelCom</button>
-        </div>
+            <div class="connection-row">
+                <button class="button" id="ConnecttoPixelCom">Connect to PixelCom</button>
+                <button class="button" id="DisconnectfromPixelCom">Disconnect from PixelCom</button>
+            </div>
 
-        <div class="time-modifier-row">
-            <button class="button" id="defaultAdd">Default time +60s</button>
-            <button class="button" id="defaultSub">Default time -60s</button>    
-            <button id="add">+60s </button>
-            <button id="sub">-60s </button>
+            <div class="time-modifier-row">
+                <button class="button" id="defaultAdd">Default time +60s</button>
+                <button class="button" id="defaultSub">Default time -60s</button>    
+                <button id="add">+60s </button>
+                <button id="sub">-60s </button>
+            </div>
+            <div class="control-row">
+                <button id="now">End time now!</button>
+                <button id="halt">Halt timer</button>
+                <button id="unHalt">Unhalt timer</button>
+                <button id="reset">Reset timer</button>
+            </div>
         </div>
-        <div class="control-row">
-            <button id="now">End time now!</button>
-            <button id="halt">Halt timer</button>
-            <button id="unHalt">Unhalt timer</button>
-            <button id="reset">Reset timer</button>
-        </div>
+        <div class = "right-column">
+            <div>
+                <button class = no-flag id="no-flag">No flag</button>
+            </div>  
+            <div>
+                <button class = green-flag id="green-flag">Green flag</button>
+            </div>
+            <div>
+                <button class = yellow-flag id="yellow-flag">Yellow flag</button>
+            </div>
+            <div>
+                <button class = red-flag id="red-flag">Red flag</button>
+            </div>
+            <div>
+                <button class = finish-flag id="finish-flag">Finish flag</button>
+            </div>
+            <div>
+                <button class = showTime id="showTime">Show Time Left</button>
+            </div>
+        </div> 
     </div>
+    <h4 id="errorMsg"></h4>
 
     <script type="text/javascript">
         var socket = io.connect('http://' + document.domain + ':' + location.port)
@@ -51,6 +74,7 @@
             document.getElementById('connected').innerHTML = 'Connected to PixelCom: ' + data.connected
             document.getElementById('time').innerHTML = 'Time left: ' + data.timeLeft
             document.getElementById('defaultTime').innerHTML = 'Default Time: ' + data.defaultTime
+            document.getElementById('errorMsg').innerHTML = 'Error: ' + data.errorMsg
         })
 
         document.getElementById('ConnecttoPixelCom').onclick = function() {
@@ -94,6 +118,24 @@
         document.getElementById('reset').onclick = function() {
             socket.emit('reset')
         }
+        document.getElementById('no-flag').onclick = function() {
+            socket.emit('flag', 'no')
+        }
+        document.getElementById('green-flag').onclick = function() {
+            socket.emit('flag', 'green')
+        }
+        document.getElementById('yellow-flag').onclick = function() {
+            socket.emit('flag', 'yellow')
+        }
+        document.getElementById('red-flag').onclick = function() {
+            socket.emit('flag', 'red')
+        }
+        document.getElementById('finish-flag').onclick = function() {
+            socket.emit('flag', 'finish')
+        }
+        document.getElementById('showTime').onclick = function() {
+            socket.emit('flag', 'showTime')
+        }
     </script>
 </body>
 <style>
@@ -101,7 +143,42 @@
         background-color: #ffffff;
         font-family: Arial, sans-serif;
     }
-    
+    .container{
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        width: 100%;
+        height: 100%;
+    }
+    .right-column{
+        color: #000000;
+        padding: 20px 20px;
+        margin: 10px 10px;
+        border: none;
+        border-radius: 5px;
+    }
+    .no-flag{
+        background-color: #c9c9c9df
+    }
+    .green-flag{
+        background-color: #00e900
+    }
+    .yellow-flag{
+        background-color: #ffff00
+    }
+    .red-flag{
+        background-color: #ff0000
+    }
+    .finish-flag{
+        background-image: linear-gradient(45deg, #000000 25%, transparent 25%), linear-gradient(-45deg, #000000 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #000000 75%), linear-gradient(-45deg, transparent 75%, #000000 75%);
+        background-size: 40px 40px;
+        background-position: 0 0, 0 20px, 20px -20px, -20px 0px;
+
+    }
+    .showTime{
+        background-color: #c9c9c9df
+    }
+
     button {
         background-color: #c9c9c9df;
         color: #000000;

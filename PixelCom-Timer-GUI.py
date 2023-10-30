@@ -4,6 +4,9 @@ import time
 import threading
 import socket
 from functions import sendToPixelTime
+from functions import connectToPixel
+from functions import disconnectFromPixel
+from functions import sendToPixelFlagCommand
 
 
 
@@ -14,12 +17,13 @@ socketio = SocketIO(app)
 defaultTime = 600
 timeLeft = defaultTime
 halt = False
+errorMsg = ""
 
-sendHOST = "192.168.10.134" #Ip of computer runing pixelcom
-sendPORT = 50001 # Port used by pixelcom
+HOST = "127.0.0.1" #Ip of test server
+#HOST = "192.168.0.85" #Ip of pixelcom router
+PORT = 24 # Port used by pixelcom
 
 Pixel_conn = 0
-Pixel_socket = 0
 
 @app.route('/')
 def index():
@@ -70,18 +74,37 @@ def on_unHalt():
 @socketio.on('pixConnect')
 def connect():
   global connected
+  global Pixel_conn
+  global errorMsg
   #Do some stuff to connect to pixelcom
-
-  connected = True
-  ping_clients()
+  if connected == False:
+    try:
+      Pixel_conn = connectToPixel(HOST, PORT)
+      connected = True
+      errorMsg = ""
+      ping_clients()
+    except:
+      errorMsg = "Error connecting to pixelcom"
+      connected = False
+      ping_clients()
+      return
 
 @socketio.on('pixDisconnect')
-def connect():
+def disconnect():
   global connected
-  #Do some stuff to connect to pixelcom
-
-  connected = False
-  ping_clients()
+  global errorMsg
+  #Do some stuff to disconnect to pixelcom
+  if connected == True:
+    try:
+      disconnectFromPixel(Pixel_conn)
+      connected = False
+      ping_clients()
+    except:
+      errorMsg = "Error disconnecting from pixelcom"
+      connected = False
+      ping_clients()
+      return 
+    
 
 @socketio.on('reset')
 def on_end():
@@ -92,23 +115,38 @@ def on_end():
 
   ping_clients()
 
+@socketio.on('flag')
+def on_flag(flag):
+  global Pixel_conn
+  global connected
+  global errorMsg
+
+  errorMsg = sendToPixelFlagCommand(Pixel_conn, flag, connected)
+  ping_clients()
+
+
 def ping_clients():
   global timeLeft
   global isFinished
   global connected
+  global errorMsg
+
+  # send to pixelcom displays
+  localErrorMsg = sendToPixelTime(Pixel_conn, timeLeft, connected)
   
   data = {
     'connected': connected,
     'timeLeft': format_time(timeLeft),
     'defaultTime': format_time(defaultTime),
+    'errorMsg': errorMsg + " " + localErrorMsg,
   }
   # JSON data
   # Ping connected clients every second
   socketio.emit('ping', data, namespace='/')
 
-  # send to pixelcom displays
-  if connected:
-    sendToPixelTime(Pixel_conn, timeLeft)
+  
+
+  
 
 
 def ping_loop():
