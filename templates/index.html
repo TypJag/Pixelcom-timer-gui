@@ -17,6 +17,7 @@
             <div class="connection-row">
                 <button class="button" id="ConnecttoPixelCom">Connect to PixelCom</button>
                 <button class="button" id="DisconnectfromPixelCom">Disconnect from PixelCom</button>
+                <button id="exit">Exit script</button>
             </div>
 
             <div class="time-modifier-row">
@@ -135,6 +136,9 @@
         }
         document.getElementById('showTime').onclick = function() {
             socket.emit('flag', 'showTime')
+        }
+        document.getElementById('exit').onclick = function() {
+            socket.emit('exit')
         }
     </script>
 </body>

@@ -3,6 +3,7 @@ from flask_socketio import SocketIO, emit
 import time
 import threading
 import socket
+import os
 from functions import sendToPixelTime
 from functions import connectToPixel
 from functions import disconnectFromPixel
@@ -114,6 +115,10 @@ def on_end():
   isFinished = False
 
   ping_clients()
+
+@socketio.on('exit')
+def on_exit():
+  os._exit(0)
 
 @socketio.on('flag')
 def on_flag(flag):
