@@ -126,6 +126,10 @@ def on_flag(flag):
   global connected
   global errorMsg
 
+  if flag == "showTime":
+    showTime = True
+  else:
+    showTime = False
   errorMsg = sendToPixelFlagCommand(Pixel_conn, flag, connected)
   ping_clients()
 
@@ -135,9 +139,11 @@ def ping_clients():
   global isFinished
   global connected
   global errorMsg
+  global showTime
 
   # send to pixelcom displays
-  localErrorMsg = sendToPixelTime(Pixel_conn, timeLeft, connected)
+  if showTime:
+    localErrorMsg = sendToPixelTime(Pixel_conn, timeLeft, connected)
   
   data = {
     'connected': connected,
@@ -195,8 +201,7 @@ def on_finish():
   if isFinished:
     return
   else:
-    # Call axel stuff
-
+    on_flag("finish-flag")
     isFinished = True
 
 def format_time(seconds):
@@ -224,5 +229,5 @@ def tcp_loop():
 
 if __name__ == '__main__':
   threading.Thread(target=ping_loop).start()
-  threading.Thread(target=tcp_loop).start()
+  #threading.Thread(target=tcp_loop).start()
   socketio.run(app, host='127.0.0.1', port=5800, allow_unsafe_werkzeug=True)
