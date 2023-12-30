@@ -22,7 +22,7 @@ def sendToPixelTime(conn, time, connected):
     checksum = 1+14 + minutes + seconds 
     hex_string = "6908086900010e" + f"{minutes:02X}" + "00" + f"{seconds:02X}" + "0000" + hex(checksum)[2:] + "16"
     #print(hex_string)
-    if connected:
+    if connected == True and time != 0: 
         try:
             conn.sendall(bytes.fromhex(hex_string))
             return ""

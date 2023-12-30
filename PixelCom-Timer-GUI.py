@@ -20,6 +20,8 @@ timeLeft = defaultTime
 halt = False
 errorMsg = ""
 
+showTime = False
+
 HOST = "127.0.0.1" #Ip of test server
 #HOST = "192.168.0.85" #Ip of pixelcom router
 PORT = 24 # Port used by pixelcom
@@ -53,7 +55,7 @@ def on_defaultChange(value):
 def on_end():
   global timeLeft
   global isFinished
-  isFinished = False
+  #isFinished = True
   timeLeft = 0
 
   ping_clients()
@@ -108,7 +110,7 @@ def disconnect():
     
 
 @socketio.on('reset')
-def on_end():
+def on_reset():
   global timeLeft
   global isFinished
   timeLeft = defaultTime
@@ -125,12 +127,14 @@ def on_flag(flag):
   global Pixel_conn
   global connected
   global errorMsg
+  global showTime
 
   if flag == "showTime":
     showTime = True
   else:
     showTime = False
-  errorMsg = sendToPixelFlagCommand(Pixel_conn, flag, connected)
+    errorMsg = sendToPixelFlagCommand(Pixel_conn, flag, connected)
+  
   ping_clients()
 
 
@@ -140,6 +144,8 @@ def ping_clients():
   global connected
   global errorMsg
   global showTime
+
+  localErrorMsg = ""
 
   # send to pixelcom displays
   if showTime:
@@ -155,10 +161,6 @@ def ping_clients():
   # Ping connected clients every second
   socketio.emit('ping', data, namespace='/')
 
-  
-
-  
-
 
 def ping_loop():
   global timeLeft
@@ -168,21 +170,23 @@ def ping_loop():
   isFinished = False
   connected = False
   while True:
-    if halt:
+    if halt == True:
       #print('Halted')
       time.sleep(1)
+      #isFinished = False
       #Send the same time to pixelcom
       ping_clients()
-    else:
+    if halt == False and timeLeft > 0:
       #print('not halted')
       ping_clients()
       time.sleep(1)
+      isFinished = False
 
       #Send updated time to pixelcom
       timeLeft = max(0, timeLeft - 1)
-      if timeLeft == 0:
-        #print('Time is up!')
-        on_finish()
+    if timeLeft == 0:
+      #print('Time is up!')
+      on_finish()
 
 
 # External functions
@@ -201,7 +205,7 @@ def on_finish():
   if isFinished:
     return
   else:
-    on_flag("finish-flag")
+    on_flag("finish")
     isFinished = True
 
 def format_time(seconds):
