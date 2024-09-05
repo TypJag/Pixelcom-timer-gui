@@ -1,5 +1,6 @@
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
+from flaskwebgui import FlaskUI
 import time
 import threading
 import socket
@@ -234,4 +235,10 @@ def tcp_loop():
 if __name__ == '__main__':
   threading.Thread(target=ping_loop).start()
   #threading.Thread(target=tcp_loop).start()
-  socketio.run(app, host='127.0.0.1', port=5800, allow_unsafe_werkzeug=True)
+  socketio.run(app, host='127.0.0.1', port=5800, allow_unsafe_werkzeug=True)  #socketio.run(app, host='127.0.0.1', port=5800, allow_unsafe_werkzeug=True)
+  FlaskUI(
+        app=app,
+        socketio=socketio,
+        server="flask_socketio",
+        fullscreen=True
+    ).run()
