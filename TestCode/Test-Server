@@ -19,4 +19,7 @@ while True:
     if not data:
         break
     sdata = data.decode()
+    print(data)
     print(sdata)
+
+print("GUI has disconnected from the server maybe")
