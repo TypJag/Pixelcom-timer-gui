@@ -1,4 +1,4 @@
-use iced::widget::{button, column, container, row, text};
+use iced::widget::{button, column, container, row, text, text_input};
 use iced::{Background, Color, Element, Subscription, Task, Theme};
 use std::io::Write;
 use std::net::TcpStream;
@@ -10,7 +10,7 @@ const DEFAULT_HOST: &str = "192.168.0.85";
 const DEFAULT_PORT: u16 = 24;
 
 fn main() -> iced::Result {
-    iced::application(TimerApp::new, update, view)
+    iced::application(boot, update, view)
         .title(|_state: &TimerApp| "PixelCom Timer GUI".to_string())
         .subscription(subscription)
         .run()
@@ -32,6 +32,12 @@ impl std::fmt::Debug for SharedStream {
 // ---------------------------------------------------------------------------
 // Domain types
 // ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq)]
+enum Page {
+    Main,
+    Settings,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 enum Flag {
@@ -69,6 +75,14 @@ enum Message {
     ExitApp,
     /// Delivered when the async connect attempt finishes
     ConnectResult(Result<SharedStream, String>),
+    /// Open the settings page
+    GoToSettings,
+    /// Return to the main page
+    GoToMain,
+    /// Host text input changed
+    HostChanged(String),
+    /// Port text input changed
+    PortChanged(String),
 }
 
 // ---------------------------------------------------------------------------
@@ -76,30 +90,65 @@ enum Message {
 // ---------------------------------------------------------------------------
 
 struct TimerApp {
+    page: Page,
     time_left: u32,
     default_time: u32,
     halted: bool,
     is_finished: bool,
     connected: bool,
+    /// True while an async connect attempt is in flight
+    connecting: bool,
     /// When true the current time is sent to PixelCom every tick
     show_time: bool,
     error_msg: String,
     tcp_stream: Option<SharedStream>,
+    /// Configured PixelCom host (editable in settings)
+    host: String,
+    /// Configured PixelCom port as a string (editable in settings)
+    port_str: String,
 }
 
 impl TimerApp {
     fn new() -> Self {
         Self {
+            page: Page::Main,
             time_left: 600,
             default_time: 600,
             halted: false,
             is_finished: false,
             connected: false,
+            connecting: true, // boot() fires a connect task immediately
             show_time: false,
             error_msg: String::new(),
             tcp_stream: None,
+            host: DEFAULT_HOST.to_string(),
+            port_str: DEFAULT_PORT.to_string(),
         }
     }
+}
+
+/// Async helper shared by the boot task and ConnectPixel message.
+async fn do_connect(host: String, port: u16) -> Result<SharedStream, String> {
+    let stream = tokio::net::TcpStream::connect((host.as_str(), port))
+        .await
+        .map_err(|e| e.to_string())?;
+    let std_stream = stream.into_std().map_err(|e| e.to_string())?;
+    std_stream
+        .set_nonblocking(false)
+        .map_err(|e| e.to_string())?;
+    std_stream
+        .set_write_timeout(Some(Duration::from_millis(500)))
+        .map_err(|e| e.to_string())?;
+    Ok(SharedStream(Arc::new(Mutex::new(std_stream))))
+}
+
+/// Boot function: returns the initial state and kicks off a connect attempt.
+fn boot() -> (TimerApp, Task<Message>) {
+    let state = TimerApp::new();
+    let host = state.host.clone();
+    let port = state.port_str.trim().parse().unwrap_or(DEFAULT_PORT);
+    let task = Task::perform(do_connect(host, port), Message::ConnectResult);
+    (state, task)
 }
 
 // ---------------------------------------------------------------------------
@@ -227,26 +276,11 @@ fn update(state: &mut TimerApp, message: Message) -> Task<Message> {
 
         // Perform the TCP connect asynchronously so the UI stays responsive
         Message::ConnectPixel => {
-            let host = DEFAULT_HOST.to_string();
-            let port = DEFAULT_PORT;
-            Task::perform(
-                async move {
-                    let stream = tokio::net::TcpStream::connect((host.as_str(), port))
-                        .await
-                        .map_err(|e| e.to_string())?;
-                    // Convert to std stream so it can be stored and used synchronously
-                    let std_stream = stream.into_std().map_err(|e| e.to_string())?;
-                    std_stream
-                        .set_nonblocking(false)
-                        .map_err(|e| e.to_string())?;
-                    // Short write timeout so a slow/stalled device does not freeze the UI tick
-                    std_stream
-                        .set_write_timeout(Some(Duration::from_millis(500)))
-                        .map_err(|e| e.to_string())?;
-                    Ok::<SharedStream, String>(SharedStream(Arc::new(Mutex::new(std_stream))))
-                },
-                Message::ConnectResult,
-            )
+            state.connecting = true;
+            state.error_msg.clear();
+            let host = state.host.clone();
+            let port: u16 = state.port_str.trim().parse().unwrap_or(DEFAULT_PORT);
+            Task::perform(do_connect(host, port), Message::ConnectResult)
         }
 
         Message::DisconnectPixel => {
@@ -257,6 +291,7 @@ fn update(state: &mut TimerApp, message: Message) -> Task<Message> {
         }
 
         Message::ConnectResult(result) => {
+            state.connecting = false;
             match result {
                 Ok(stream) => {
                     state.tcp_stream = Some(stream);
@@ -289,6 +324,29 @@ fn update(state: &mut TimerApp, message: Message) -> Task<Message> {
         Message::ExitApp => {
             std::process::exit(0);
         }
+
+        Message::GoToSettings => {
+            state.page = Page::Settings;
+            Task::none()
+        }
+
+        Message::GoToMain => {
+            state.page = Page::Main;
+            Task::none()
+        }
+
+        Message::HostChanged(value) => {
+            state.host = value;
+            Task::none()
+        }
+
+        Message::PortChanged(value) => {
+            // Only accept digits
+            if value.chars().all(|c| c.is_ascii_digit()) {
+                state.port_str = value;
+            }
+            Task::none()
+        }
     }
 }
 
@@ -320,14 +378,62 @@ fn flag_button_style(
 // ---------------------------------------------------------------------------
 
 fn view(state: &TimerApp) -> Element<'_, Message> {
+    match state.page {
+        Page::Main => view_main(state),
+        Page::Settings => view_settings(state),
+    }
+}
+
+fn view_settings(state: &TimerApp) -> Element<'_, Message> {
+    let port_error: Element<'_, Message> =
+        if state.port_str.trim().parse::<u16>().is_err() && !state.port_str.is_empty() {
+            text("Port must be 0–65535")
+                .size(13)
+                .color(Color::from_rgb8(200, 0, 0))
+                .into()
+        } else {
+            text("").size(13).into()
+        };
+
+    let content = column![
+        text("Settings").size(32),
+        column![
+            text("PixelCom IP Address").size(16),
+            text_input("e.g. 192.168.0.85", &state.host)
+                .on_input(Message::HostChanged)
+                .padding(10),
+        ]
+        .spacing(6),
+        column![
+            text("Port").size(16),
+            text_input("e.g. 24", &state.port_str)
+                .on_input(Message::PortChanged)
+                .padding(10),
+            port_error,
+        ]
+        .spacing(6),
+        button("Back to Timer").on_press(Message::GoToMain).padding(12),
+    ]
+    .spacing(20)
+    .padding(30)
+    .max_width(420);
+
+    container(content).padding(20).into()
+}
+
+fn view_main(state: &TimerApp) -> Element<'_, Message> {
     let halted_label = if state.halted { "  [HALTED]" } else { "" };
 
     // ----- Left column -----
 
-    let connected_status = text(format!(
-        "Connected to PixelCom: {}",
-        if state.connected { "Yes" } else { "No" }
-    ))
+    let connected_status = text(if state.connecting {
+        "Connecting to PixelCom…".to_string()
+    } else {
+        format!(
+            "Connected to PixelCom: {}",
+            if state.connected { "Yes" } else { "No" }
+        )
+    })
     .size(20);
 
     let time_display =
@@ -336,9 +442,20 @@ fn view(state: &TimerApp) -> Element<'_, Message> {
     let default_time_display =
         text(format!("Default Time: {}", format_time(state.default_time))).size(20);
 
+    // Disable connect button while an attempt is already in flight or already connected
+    let connect_btn = {
+        let b = button("Connect to PixelCom");
+        if state.connecting || state.connected {
+            b // no on_press → visually disabled
+        } else {
+            b.on_press(Message::ConnectPixel)
+        }
+    };
+
     let connection_row = row![
-        button("Connect to PixelCom").on_press(Message::ConnectPixel),
+        connect_btn,
         button("Disconnect from PixelCom").on_press(Message::DisconnectPixel),
+        button("Settings").on_press(Message::GoToSettings),
         button("Exit").on_press(Message::ExitApp),
     ]
     .spacing(10);
@@ -359,9 +476,12 @@ fn view(state: &TimerApp) -> Element<'_, Message> {
     ]
     .spacing(10);
 
+    let addr_display = text(format!("{}:{}", state.host, state.port_str)).size(14);
+
     let left_column = column![
         text("PixelCom-Timer_GUI").size(28),
         connected_status,
+        addr_display,
         time_display,
         default_time_display,
         connection_row,
