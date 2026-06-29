@@ -147,8 +147,21 @@ fn boot() -> (TimerApp, Task<Message>) {
     let state = TimerApp::new();
     let host = state.host.clone();
     let port = state.port_str.trim().parse().unwrap_or(DEFAULT_PORT);
-    let task = Task::perform(do_connect(host, port), Message::ConnectResult);
-    (state, task)
+    let connect_task = Task::perform(do_connect(host, port), Message::ConnectResult);
+
+    #[cfg(target_os = "linux")]
+    let fullscreen_task: Task<Message> = iced::window::latest().then(|maybe_id| {
+        if let Some(id) = maybe_id {
+            iced::window::set_mode(id, iced::window::Mode::Fullscreen)
+        } else {
+            Task::none()
+        }
+    });
+
+    #[cfg(not(target_os = "linux"))]
+    let fullscreen_task: Task<Message> = Task::none();
+
+    (state, Task::batch([connect_task, fullscreen_task]))
 }
 
 // ---------------------------------------------------------------------------
@@ -218,7 +231,7 @@ fn update(state: &mut TimerApp, message: Message) -> Task<Message> {
             }
 
             // Decrement the counter when running
-            if !state.halted && state.time_left > 0 {
+            if !state.halted && state.connected && state.time_left > 0 {
                 state.time_left -= 1;
             }
 
@@ -456,7 +469,6 @@ fn view_main(state: &TimerApp) -> Element<'_, Message> {
         connect_btn,
         button("Disconnect from PixelCom").on_press(Message::DisconnectPixel),
         button("Settings").on_press(Message::GoToSettings),
-        button("Exit").on_press(Message::ExitApp),
     ]
     .spacing(10);
 
@@ -476,12 +488,8 @@ fn view_main(state: &TimerApp) -> Element<'_, Message> {
     ]
     .spacing(10);
 
-    let addr_display = text(format!("{}:{}", state.host, state.port_str)).size(14);
-
     let left_column = column![
-        text("PixelCom-Timer_GUI").size(28),
         connected_status,
-        addr_display,
         time_display,
         default_time_display,
         connection_row,
